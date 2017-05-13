@@ -2,12 +2,14 @@
   "name": "league-series-search",
   "version": "0.0.2",
   "dependencies": {
-    "@types/lodash": "^4.14.64",
     "lodash": "^4.17.4",
     "youtube-search": "^1.0.9"
   },
   "scripts": {
     "prestart": "tsc",
     "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.64"
   }
 }

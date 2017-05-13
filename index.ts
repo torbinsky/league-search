@@ -22,17 +22,17 @@ interface Series {
 }
 
 function _getSeriesMetaFromTitle(title: String){
-    var seriesRegex: RegExp = /^((\w+)\s*vs\s*(\w+)).*?-([\w\s]+)?-/;
+    var seriesRegex: RegExp = /^((\w+)\s*vs\s*(\w+)).*?-([\w\s-]+)-/;
     var match = title.match(seriesRegex);
     
     var meta: SeriesMeta = null;
     
     // If we match this regex, pull out the series meta data
-    if(match && match.length >= 4){
+    if(match && match.length >= 5){
         meta = {
-            team1: match[1],
-            team2: match[2],
-            description: match[3]
+            team1: match[2],
+            team2: match[3],
+            description: match[4].trim()
         };
     }
     
@@ -50,7 +50,7 @@ function parseSeries(videos: youtubeSearch.YouTubeSearchResults[]){
         currentSeriesMeta = _getSeriesMetaFromTitle(video.title);
         
         // Check if parsed series is the same as the previous video's series
-        if(_.isEqual(currentSeriesMeta,previousSeriesMeta)){
+        if(!_.isEqual(currentSeriesMeta,previousSeriesMeta)){
             // If we already had a series, push that to results and start the next one
             if(series != null){
                 results.push(series);
