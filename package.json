@@ -1,0 +1,11 @@
+{
+  "name": "league-series-search",
+  "version": "0.0.2",
+  "dependencies": {
+    "youtube-search": "^1.0.9"
+  },
+  "scripts": {
+      "prestart": "tsc",
+      "start": "node dist/index.js"
+  }
+}
