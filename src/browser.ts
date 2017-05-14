@@ -1,18 +1,25 @@
 import * as youtubeSearch from "youtube-search";
 import * as _ from "lodash";
 import {SeriesMeta, Series, SearchType} from "./data";
+import {SeriesMatcher} from "./matcher";
 
 export default class LeagueSeriesBrowser {
     team: string = '';
     keywords: string = '';
     series: Series[] = [];
+    seriesMatcher: SeriesMatcher = null;
+    channelId: string;
 
     private _apiKey: string;
     private _nextPage: string = '';
     private _prevPage: string = '';
     
-    constructor(apiKey: string){
+    constructor(apiKey: string, channelId: string, matcher?: SeriesMatcher){
         this._apiKey = apiKey;
+        this.channelId = channelId;
+        if(!matcher){
+            this.seriesMatcher = new SeriesMatcher();
+        }
         this._getSeries(this._resultHandler());
     }
 
@@ -53,8 +60,8 @@ export default class LeagueSeriesBrowser {
         var opts: youtubeSearch.YouTubeSearchOptions = {
             maxResults: 50,
             key: this._apiKey,
-            channelId: "UCQJT7rpynlR7SSdn3OyuI_Q",
-            order: "date",
+            channelId: this.channelId,
+            order: 'date',
             pageToken: pageId
         };
 
@@ -66,78 +73,78 @@ export default class LeagueSeriesBrowser {
             if(err){
                 cb(err,null,null);
             }else{
-                cb(null, _parseSeries(results), pageInfo);
+                cb(null, this._parseSeries(results), pageInfo);
             }
         });
     }
-}
 
-function _getSeriesMetaFromTitle(title: string){
-    var seriesRegex: RegExp = /^((\w+)\s*vs\s*(\w+)).*?-([\w\s-]+)-/;
-    var match = title.match(seriesRegex);
-    
-    var meta: SeriesMeta = null;
-    
-    // If we match this regex, pull out the series meta data
-    if(match && match.length >= 5){
-        meta = {
-            team1: match[2],
-            team2: match[3],
-            description: match[4].trim()
-        };
-    }
-    
-    return meta;
-}
-
-function _parseSeries(videos: youtubeSearch.YouTubeSearchResults[]){
-    var results: Series[] = [];
-    
-    // processing variables
-    var currentSeriesMeta: SeriesMeta, previousSeriesMeta: SeriesMeta, series: Series;
-    
-    // Iterate over each video and determine what series it belongs to
-    for(let video of videos){
-        currentSeriesMeta = _getSeriesMetaFromTitle(video.title);
-        // skip videos we couldn't parse
-        if(!currentSeriesMeta){
-            continue;
+    _getSeriesMetaFromTitle(title: string){
+        var matcher = this.seriesMatcher;
+        var match = title.match(matcher.seriesRegex);
+        
+        var meta: SeriesMeta = null;
+        
+        // If we match this regex, pull out the series meta data
+        if(match && match.length >= matcher.lastIndex() - 1){
+            meta = {
+                team1: match[matcher.team1Idx],
+                team2: match[matcher.team2Idx],
+                description: match[matcher.descriptionIdx].trim()
+            };
         }
         
-        // Check if parsed series is the same as the previous video's series
-        if(!_.isEqual(currentSeriesMeta,previousSeriesMeta)){
-            // If we already had a series, push that to results and start the next one
-            if(series != null){
-                results.push(series);
+        return meta;
+    }
+
+    _parseSeries(videos: youtubeSearch.YouTubeSearchResults[]){
+        var results: Series[] = [];
+        
+        // processing variables
+        var currentSeriesMeta: SeriesMeta, previousSeriesMeta: SeriesMeta, series: Series;
+        
+        // Iterate over each video and determine what series it belongs to
+        for(let video of videos){
+            currentSeriesMeta = this._getSeriesMetaFromTitle(video.title);
+            // skip videos we couldn't parse
+            if(!currentSeriesMeta){
+                continue;
+            }
+            
+            // Check if parsed series is the same as the previous video's series
+            if(!_.isEqual(currentSeriesMeta,previousSeriesMeta)){
+                // If we already had a series, push that to results and start the next one
+                if(series != null){
+                    results.push(series);
+                }
+
+                // Start new series
+                series = {
+                    matchCount: 1,
+                    matchVideoIds: [video.id],
+                    seriesDate: video.publishedAt, // date of series is publish date of first game
+                    meta: currentSeriesMeta
+                };
+            }else{
+                // Add to existing series
+                series.matchCount++;
+                series.matchVideoIds.push(video.id);
             }
 
-            // Start new series
-            series = {
-                matchCount: 1,
-                matchVideoIds: [video.id],
-                seriesDate: video.publishedAt, // date of series is publish date of first game
-                meta: currentSeriesMeta
-            };
-        }else{
-            // Add to existing series
-            series.matchCount++;
-            series.matchVideoIds.push(video.id);
+            // remember which series name we had last so we can detect when we encounter a new series
+            previousSeriesMeta = currentSeriesMeta;
         }
+        
+        /*
+        ** TW: Intentionally don't do the following, because it might add a partial series.
+        **
+        ** For example, imagine we paginate such that a 3 game series (game1, game2, game3)
+        ** ends up page1: [game1, game2] page2: [game3]. This would result in the series being broken into 2 different series
+        **
 
-        // remember which series name we had last so we can detect when we encounter a new series
-        previousSeriesMeta = currentSeriesMeta;
+        // Add the last series we processed
+        results.push(series); // <-- bad, will add a partial series
+        */
+
+        return results;
     }
-    
-    /*
-    ** TW: Intentionally don't do the following, because it might add a partial series.
-    **
-    ** For example, imagine we paginate such that a 3 game series (game1, game2, game3)
-    ** ends up page1: [game1, game2] page2: [game3]. This would result in the series being broken into 2 different series
-    **
-
-    // Add the last series we processed
-    results.push(series); // <-- bad, will add a partial series
-    */
-
-    return results;
 }
