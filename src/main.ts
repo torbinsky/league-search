@@ -1,10 +1,17 @@
-import Browser from './browser'
+import Browser from './search'
 
-var browser = new Browser('API_KEY','UCQJT7rpynlR7SSdn3OyuI_Q');
+var search = new Browser('API_KEY','UCQJT7rpynlR7SSdn3OyuI_Q');
+search.load((err, results) => {
+    if(err){
+        console.log(err);
+    }else{
+        for(let r of results){
+            console.log(r);
+        }
+    }
+});
 
 // Wait a few seconds and then "display" the browser's series
 setTimeout(() => {
-    for(let s of browser.series){
-        console.log(s);
-    }
+    // noop
 }, 3000);

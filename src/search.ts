@@ -3,10 +3,9 @@ import * as _ from "lodash";
 import {SeriesMeta, Series, SearchType} from "./data";
 import {SeriesMatcher} from "./matcher";
 
-export default class LeagueSeriesBrowser {
+export default class LeagueSeriesSearch {
     team: string = '';
     keywords: string = '';
-    series: Series[] = [];
     seriesMatcher: SeriesMatcher = null;
     channelId: string;
 
@@ -20,7 +19,6 @@ export default class LeagueSeriesBrowser {
         if(!matcher){
             this.seriesMatcher = new SeriesMatcher();
         }
-        this._getSeries(this._resultHandler());
     }
 
     hasNext() {
@@ -31,28 +29,30 @@ export default class LeagueSeriesBrowser {
         return this._prevPage != null;
     }
 
-    next() {
+    load(cb: (err: Error, result?:Series[]) => void){
+        this._getSeries(this._resultHandler(cb));
+    }
+
+    next(cb: (err: Error,result?:Series[]) => void) {
         if(this._nextPage){
-            this._getSeries(this._resultHandler(), this._nextPage);
+            this._getSeries(this._resultHandler(cb), this._nextPage);
         }
     }
 
-    prev() {
+    prev(cb: (err: Error,result?:Series[]) => void) {
         if(this._prevPage){
-            this._getSeries(this._resultHandler(), this._prevPage);
+            this._getSeries(this._resultHandler(cb), this._prevPage);
         }
     }
 
-    _resultHandler(): (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void {
+    _resultHandler(cb: (err: Error,result?:Series[]) => void): (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void {
         var target = this;
         return function(err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults){
-            if(err){
-                console.log(err);
-                return;
+            if(!err){
+                target._nextPage = pageInfo.nextPageToken;
+                target._prevPage = pageInfo.prevPageToken;
             }
-            target.series = series;
-            target._nextPage = pageInfo.nextPageToken;
-            target._prevPage = pageInfo.prevPageToken
+            cb(err, series);
         }
     }
 
