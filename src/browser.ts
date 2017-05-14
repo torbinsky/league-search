@@ -3,17 +3,17 @@ import * as _ from "lodash";
 import {SeriesMeta, Series, SearchType} from "./data";
 
 export default class LeagueSeriesBrowser {
-    team: string;
-    keywords: string;
-    series: Series[];
+    team: string = '';
+    keywords: string = '';
+    series: Series[] = [];
 
     private _apiKey: string;
-    private _nextPage: string = null;
-    private _prevPage: string = null;
+    private _nextPage: string = '';
+    private _prevPage: string = '';
     
     constructor(apiKey: string){
         this._apiKey = apiKey;
-        this._getSeries(this._handleResult);
+        this._getSeries(this._resultHandler());
     }
 
     hasNext() {
@@ -26,20 +26,27 @@ export default class LeagueSeriesBrowser {
 
     next() {
         if(this._nextPage){
-            this._getSeries(this._handleResult, this._nextPage);
+            this._getSeries(this._resultHandler(), this._nextPage);
         }
     }
 
     prev() {
         if(this._prevPage){
-            this._getSeries(this._handleResult, this._prevPage);
+            this._getSeries(this._resultHandler(), this._prevPage);
         }
     }
 
-    _handleResult(err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults){
-        this.series = series;
-        this._nextPage = pageInfo.nextPageToken;
-        this._prevPage = pageInfo.prevPageToken
+    _resultHandler(): (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void {
+        var target = this;
+        return function(err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults){
+            if(err){
+                console.log(err);
+                return;
+            }
+            target.series = series;
+            target._nextPage = pageInfo.nextPageToken;
+            target._prevPage = pageInfo.prevPageToken
+        }
     }
 
     _getSeries(cb: (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void, pageId?: string){
