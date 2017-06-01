@@ -3,15 +3,15 @@ export enum SearchType {
     KEYWORDS
 }
 
-export interface SeriesMeta {
+export interface MatchMeta {
     team1: string;
     team2: string;
     description: string;
 }
  
-export interface Series {
-    meta: SeriesMeta;
-    matchCount: number;
+export interface Match {
+    meta: MatchMeta;
+    gameCount: number;
     matchVideoIds: string[];
-    seriesDate: string;
+    matchDate: string;
 }

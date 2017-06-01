@@ -1,5 +1,5 @@
-export class SeriesMatcher {
-    seriesRegex: RegExp = /^((\w+)\s*vs\s*(\w+)).*?-([\w\s-]+)-/;
+export class MatchParser {
+    matchRegex: RegExp = /^((\w+)\s*vs\s*(\w+)).*?-([\w\s-]+)-/;
     team1Idx: number = 2;
     team2Idx: number = 3;
     descriptionIdx: number = 4;

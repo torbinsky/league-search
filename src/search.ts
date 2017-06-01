@@ -1,23 +1,23 @@
 import * as youtubeSearch from "youtube-search";
 import * as _ from "lodash";
-import {SeriesMeta, Series, SearchType} from "./data";
-import {SeriesMatcher} from "./matcher";
+import {MatchMeta, Match, SearchType} from "./data";
+import {MatchParser} from "./parser";
 
-export default class LeagueSeriesSearch {
+export class LeagueSearch {
     team: string = '';
     keywords: string = '';
-    seriesMatcher: SeriesMatcher = null;
+    matchMatcher: MatchParser = null;
     channelId: string;
 
     private _apiKey: string;
     private _nextPage: string = '';
     private _prevPage: string = '';
     
-    constructor(apiKey: string, channelId: string, matcher?: SeriesMatcher){
+    constructor(apiKey: string, channelId: string, parser?: MatchParser){
         this._apiKey = apiKey;
         this.channelId = channelId;
-        if(!matcher){
-            this.seriesMatcher = new SeriesMatcher();
+        if(!parser){
+            this.matchMatcher = new MatchParser();
         }
     }
 
@@ -29,34 +29,34 @@ export default class LeagueSeriesSearch {
         return this._prevPage != null;
     }
 
-    load(cb: (err: Error, result?:Series[]) => void){
-        this._getSeries(this._resultHandler(cb));
+    load(cb: (err: Error, result?:Match[]) => void){
+        this._searchMatches(this._resultHandler(cb));
     }
 
-    next(cb: (err: Error,result?:Series[]) => void) {
+    next(cb: (err: Error,result?:Match[]) => void) {
         if(this._nextPage){
-            this._getSeries(this._resultHandler(cb), this._nextPage);
+            this._searchMatches(this._resultHandler(cb), this._nextPage);
         }
     }
 
-    prev(cb: (err: Error,result?:Series[]) => void) {
+    prev(cb: (err: Error,result?:Match[]) => void) {
         if(this._prevPage){
-            this._getSeries(this._resultHandler(cb), this._prevPage);
+            this._searchMatches(this._resultHandler(cb), this._prevPage);
         }
     }
 
-    _resultHandler(cb: (err: Error,result?:Series[]) => void): (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void {
+    _resultHandler(cb: (err: Error,result?:Match[]) => void): (err: Error, match: Match[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void {
         var target = this;
-        return function(err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults){
+        return function(err: Error, match: Match[], pageInfo: youtubeSearch.YouTubeSearchPageResults){
             if(!err){
                 target._nextPage = pageInfo.nextPageToken;
                 target._prevPage = pageInfo.prevPageToken;
             }
-            cb(err, series);
+            cb(err, match);
         }
     }
 
-    _getSeries(cb: (err: Error, series: Series[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void, pageId?: string){
+    _searchMatches(cb: (err: Error, match: Match[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void, pageId?: string){
         var opts: youtubeSearch.YouTubeSearchOptions = {
             maxResults: 50,
             key: this._apiKey,
@@ -73,18 +73,18 @@ export default class LeagueSeriesSearch {
             if(err){
                 cb(err,null,null);
             }else{
-                cb(null, this._parseSeries(results), pageInfo);
+                cb(null, this._parseMatch(results), pageInfo);
             }
         });
     }
 
-    _getSeriesMetaFromTitle(title: string){
-        var matcher = this.seriesMatcher;
-        var match = title.match(matcher.seriesRegex);
+    _getMatchMetaFromTitle(title: string){
+        var matcher = this.matchMatcher;
+        var match = title.match(matcher.matchRegex);
         
-        var meta: SeriesMeta = null;
+        var meta: MatchMeta = null;
         
-        // If we match this regex, pull out the series meta data
+        // If we match this regex, pull out the match meta data
         if(match && match.length >= matcher.lastIndex() - 1){
             meta = {
                 team1: match[matcher.team1Idx],
@@ -96,53 +96,53 @@ export default class LeagueSeriesSearch {
         return meta;
     }
 
-    _parseSeries(videos: youtubeSearch.YouTubeSearchResults[]){
-        var results: Series[] = [];
+    _parseMatch(videos: youtubeSearch.YouTubeSearchResults[]){
+        var results: Match[] = [];
         
         // processing variables
-        var currentSeriesMeta: SeriesMeta, previousSeriesMeta: SeriesMeta, series: Series;
+        var currentMatchMeta: MatchMeta, previousMatchMeta: MatchMeta, match: Match;
         
-        // Iterate over each video and determine what series it belongs to
+        // Iterate over each video and determine what match it belongs to
         for(let video of videos){
-            currentSeriesMeta = this._getSeriesMetaFromTitle(video.title);
+            currentMatchMeta = this._getMatchMetaFromTitle(video.title);
             // skip videos we couldn't parse
-            if(!currentSeriesMeta){
+            if(!currentMatchMeta){
                 continue;
             }
             
-            // Check if parsed series is the same as the previous video's series
-            if(!_.isEqual(currentSeriesMeta,previousSeriesMeta)){
-                // If we already had a series, push that to results and start the next one
-                if(series != null){
-                    results.push(series);
+            // Check if parsed match is the same as the previous video's match
+            if(!_.isEqual(currentMatchMeta,previousMatchMeta)){
+                // If we already had a match, push that to results and start the next one
+                if(match != null){
+                    results.push(match);
                 }
 
-                // Start new series
-                series = {
-                    matchCount: 1,
+                // Start new match
+                match = {
+                    gameCount: 1,
                     matchVideoIds: [video.id],
-                    seriesDate: video.publishedAt, // date of series is publish date of first game
-                    meta: currentSeriesMeta
+                    matchDate: video.publishedAt, // date of match is publish date of first game
+                    meta: currentMatchMeta
                 };
             }else{
-                // Add to existing series
-                series.matchCount++;
-                series.matchVideoIds.push(video.id);
+                // Add to existing match
+                match.gameCount++;
+                match.matchVideoIds.push(video.id);
             }
 
-            // remember which series name we had last so we can detect when we encounter a new series
-            previousSeriesMeta = currentSeriesMeta;
+            // remember which match name we had last so we can detect when we encounter a new match
+            previousMatchMeta = currentMatchMeta;
         }
         
         /*
-        ** TW: Intentionally don't do the following, because it might add a partial series.
+        ** TW: Intentionally don't do the following, because it might add a partial match.
         **
-        ** For example, imagine we paginate such that a 3 game series (game1, game2, game3)
-        ** ends up page1: [game1, game2] page2: [game3]. This would result in the series being broken into 2 different series
+        ** For example, imagine we paginate such that a 3 game match (game1, game2, game3)
+        ** ends up page1: [game1, game2] page2: [game3]. This would result in the match being broken into 2 different match
         **
 
-        // Add the last series we processed
-        results.push(series); // <-- bad, will add a partial series
+        // Add the last match we processed
+        results.push(match); // <-- bad, will add a partial match
         */
 
         return results;

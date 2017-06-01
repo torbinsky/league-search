@@ -1,7 +1,6 @@
 {
     "compilerOptions": {
-        "target": "ES6",
-        "moduleResolution": "node",
+        "target": "ES5",
         "noImplicitAny": true,
         "suppressImplicitAnyIndexErrors": true,
         "removeComments": true,
@@ -11,8 +10,9 @@
         "typeRoots": [
 			"node_modules/@types"
 		],
-        "lib": ["es6", "dom"],
-		"module": "commonjs"
+        "lib": ["es6"],
+		"module": "commonjs",
+        "declaration": true
     },
     "include": [
         "src/**/*"
