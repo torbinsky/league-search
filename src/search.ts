@@ -1,6 +1,6 @@
 import * as youtubeSearch from "youtube-search";
 import * as _ from "lodash";
-import {MatchMeta, Match, SearchType} from "./data";
+import {Match, SearchType, MatchMeta} from "./data";
 import {MatchParser} from "./parser";
 
 export class LeagueSearch {
@@ -56,6 +56,18 @@ export class LeagueSearch {
         }
     }
 
+    _generateQuery(team: string, keywords: string){
+        let query = ' ';
+        if(team){
+            query = team + query;
+        }
+        if(keywords){
+            query = query + keywords;
+        }
+
+        return query;
+    }
+
     _searchMatches(cb: (err: Error, match: Match[], pageInfo: youtubeSearch.YouTubeSearchPageResults) => void, pageId?: string){
         var opts: youtubeSearch.YouTubeSearchOptions = {
             maxResults: 50,
@@ -66,7 +78,7 @@ export class LeagueSearch {
         };
 
         // Build youtube title query
-        var query: string = this.team + ' ' + this.keywords;
+        let query = this._generateQuery(this.team, this.keywords);
 
         // Run the youtube search and execute results
         youtubeSearch(query, opts, (err, results, pageInfo) => {
@@ -78,11 +90,10 @@ export class LeagueSearch {
         });
     }
 
-    _getMatchMetaFromTitle(title: string){
+    _getMatchMetaFromTitle(title: string): MatchMeta {
         var matcher = this.matchMatcher;
         var match = title.match(matcher.matchRegex);
-        
-        var meta: MatchMeta = null;
+        var meta = null;
         
         // If we match this regex, pull out the match meta data
         if(match && match.length >= matcher.lastIndex() - 1){
@@ -97,33 +108,33 @@ export class LeagueSearch {
     }
 
     _parseMatch(videos: youtubeSearch.YouTubeSearchResults[]){
-        var results: Match[] = [];
+        let results: Match[] = [];
         
         // processing variables
-        var currentMatchMeta: MatchMeta, previousMatchMeta: MatchMeta, match: Match;
+        let previousMatch: Match, match: Match;
         
         // Iterate over each video and determine what match it belongs to
         for(let video of videos){
-            currentMatchMeta = this._getMatchMetaFromTitle(video.title);
+            var matchMeta = this._getMatchMetaFromTitle(video.title);
             // skip videos we couldn't parse
-            if(!currentMatchMeta){
+            if(!matchMeta){
                 continue;
             }
             
             // Check if parsed match is the same as the previous video's match
-            if(!_.isEqual(currentMatchMeta,previousMatchMeta)){
+            if(!previousMatch || !_.isEqual(matchMeta,previousMatch.meta)){
                 // If we already had a match, push that to results and start the next one
                 if(match != null){
                     results.push(match);
                 }
 
                 // Start new match
-                match = {
-                    gameCount: 1,
-                    matchVideoIds: [video.id],
-                    matchDate: video.publishedAt, // date of match is publish date of first game
-                    meta: currentMatchMeta
-                };
+                match = new Match();
+                match.gameCount = 1; // we have 1 video so far
+                match.matchVideoIds = [video.id]; // initialize with first video
+                match.matchDate = video.publishedAt; // date of match is publish date of first game
+                match.thumbnail = video.thumbnails.default; // use the first video's thumbnail as the match thumbnail
+                match.meta = matchMeta;
             }else{
                 // Add to existing match
                 match.gameCount++;
@@ -131,7 +142,7 @@ export class LeagueSearch {
             }
 
             // remember which match name we had last so we can detect when we encounter a new match
-            previousMatchMeta = currentMatchMeta;
+            previousMatch = match;
         }
         
         /*
