@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "ES5",
+        "target": "ES6",
         "noImplicitAny": true,
         "suppressImplicitAnyIndexErrors": true,
         "removeComments": true,
@@ -8,10 +8,10 @@
         "sourceMap": false,
         "outDir": "dist",
         "typeRoots": [
-			"node_modules/@types"
-		],
+            "node_modules/@types"
+        ],
         "lib": ["es6"],
-		"module": "commonjs",
+        "module": "commonjs",
         "declaration": true
     },
     "include": [
